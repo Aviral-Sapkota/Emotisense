@@ -1,0 +1,31 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+
+# Database
+asyncpg==0.30.0
+sqlalchemy[asyncio]==2.0.35
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.12
+
+# Your Keras CNN model + OpenCV face detection
+tensorflow==2.18.0       # loads your .h5 model
+opencv-python-headless==4.10.0.84  # face detection (headless = no GUI needed on server)
+numpy==1.26.4
+Pillow==10.4.0
+
+# Web Push notifications 
+pywebpush==2.0.0
+
+# Templates & env
+jinja2==3.1.4
+python-dotenv==1.0.1
+aiofiles==24.1.0
+
+# Email Validator 
+email-validator
+
+passlib==1.7.4
+bcrypt==3.2.2

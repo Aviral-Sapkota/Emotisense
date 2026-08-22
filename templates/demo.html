@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EmotiSense — Live Demo</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/demo.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <div class="topbar-logo-icon">🧠</div>
+    <span class="topbar-logo-name">EmotiSense</span>
+    <span class="model-badge">Custom CNN</span>
+  </div>
+  <div class="topbar-right">
+    <span class="user-greeting" id="user-greeting">Hello, —</span>
+    <button class="btn-icon" id="btn-notif-toggle" onclick="toggleNotifPanel()" title="Notification settings">🔔</button>
+    <button class="btn-logout" onclick="logout()">Sign out</button>
+  </div>
+</header>
+
+<!-- NOTIFICATION RULES PANEL (slide-in) -->
+<aside id="notif-panel" class="notif-panel" style="display:none;">
+  <div class="notif-panel-header">
+    <strong>🔔 Notification Rules</strong>
+    <button class="btn-close" onclick="toggleNotifPanel()">✕</button>
+  </div>
+  <p class="notif-desc">
+    Receive an OS push notification when any detected emotion hits your threshold —
+    even when this tab is in the background.
+  </p>
+
+  <div class="push-section">
+    <button class="btn-enable-push" id="btn-enable-push" onclick="enablePush()">Enable notifications</button>
+    <span class="push-state-label" id="push-state-label"></span>
+  </div>
+
+  <div class="rule-form">
+    <select id="rule-emotion" class="form-input-sm">
+      <option value="angry">😠 Angry</option>
+      <option value="disgust">🤢 Disgust</option>
+      <option value="fear">😨 Fear</option>
+      <option value="happy">😄 Happy</option>
+      <option value="sad">😢 Sad</option>
+      <option value="surprise">😮 Surprise</option>
+      <option value="neutral">😐 Neutral</option>
+    </select>
+    <span class="rule-sep">≥</span>
+    <input type="number" id="rule-threshold" class="form-input-sm threshold-input" min="1" max="100" value="70">
+    <span class="rule-sep">%</span>
+    <button class="btn-add-rule" onclick="addRule()">+ Add</button>
+  </div>
+  <div id="rules-list" class="rules-list"></div>
+</aside>
+
+<!-- MAIN LAYOUT -->
+<main class="demo-body">
+
+  <!-- LEFT: CAMERA + CONTROLS -->
+  <section class="camera-panel">
+    <p class="panel-label">📷 Live camera feed</p>
+
+    <div class="video-frame" id="video-frame">
+      <div class="cam-placeholder" id="cam-placeholder">
+        <div class="cam-icon">📷</div>
+        <p>Click <strong>Start Camera</strong> to begin</p>
+        <p class="cam-hint">Your browser will ask for camera permission</p>
+      </div>
+      <video id="webcam" autoplay playsinline muted style="display:none;width:100%;height:100%;object-fit:cover;"></video>
+      <div class="live-overlay" id="live-overlay" style="display:none;">
+        <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+      </div>
+      <!-- Face detection indicator -->
+      <div class="face-indicator" id="face-indicator" style="display:none;">
+        <span id="face-count-label">0 faces</span>
+      </div>
+    </div>
+
+    <!-- Hidden canvas for frame capture -->
+    <canvas id="snap-canvas" style="display:none;"></canvas>
+
+    <div class="cam-controls">
+      <button class="btn-cam"         id="btn-start"   onclick="startCamera()">▶ Start Camera</button>
+      <button class="btn-cam primary" id="btn-analyze" onclick="analyzeEmotion()" disabled>🧠 Analyze</button>
+      <button class="btn-cam danger"  id="btn-stop"    onclick="stopCamera()"    disabled>■ Stop</button>
+    </div>
+
+    <!-- Auto-analyze toggle -->
+    <label class="auto-toggle">
+      <input type="checkbox" id="auto-analyze" onchange="toggleAuto(this)">
+      <span class="toggle-slider"></span>
+      <span class="toggle-label">Auto-analyze every <strong id="auto-interval-label">3s</strong></span>
+    </label>
+    <input type="range" id="auto-interval" min="1" max="10" value="3" class="interval-slider" oninput="updateInterval(this)" style="display:none;">
+
+    <!-- Session stats -->
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="stat-session">0</div>
+        <div class="stat-lbl">Session scans</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-top">—</div>
+        <div class="stat-lbl">Top emotion</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-faces">0</div>
+        <div class="stat-lbl">Faces detected</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-db">—</div>
+        <div class="stat-lbl">All-time scans</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: RESULTS + HISTORY -->
+  <section class="results-panel">
+
+    <!-- Emotion result card -->
+    <div class="card" id="result-card">
+      <div id="state-idle" class="placeholder-state">
+        <div class="ph-icon">🎭</div>
+        <p>Start the camera and click <strong>Analyze</strong><br>to run your CNN on a live frame</p>
+      </div>
+      <div id="state-analyzing" style="display:none;" class="analyzing-state">
+        <span class="spinner"></span> Running your model…
+      </div>
+      <div id="state-no-face" style="display:none;" class="no-face-state">
+        <div class="no-face-icon">🔍</div>
+        <p id="no-face-msg">No face detected. Please face the camera.</p>
+      </div>
+      <div id="state-result" style="display:none;">
+        <!-- Hero: primary emotion -->
+        <div class="emotion-hero">
+          <div class="emotion-emoji"  id="res-emoji">😐</div>
+          <div class="emotion-name"   id="res-name">Neutral</div>
+          <div class="confidence-bar-wrap">
+            <div class="confidence-bar-bg">
+              <div class="confidence-bar-fill" id="conf-bar" style="width:0%"></div>
+            </div>
+            <span class="confidence-pct" id="res-conf">0%</span>
+          </div>
+        </div>
+
+        <!-- All 7 emotion bars -->
+        <p class="section-label" style="margin-top:1rem;">Emotion breakdown</p>
+        <div class="emotion-bars" id="emotion-bars"></div>
+      </div>
+    </div>
+
+    <!-- Scan history card -->
+    <div class="card history-card">
+      <div class="card-header-row">
+        <p class="section-label" style="margin:0">Recent scans</p>
+        <button class="btn-clear-history" onclick="clearHistory()">Clear</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="placeholder-state" style="padding:1rem 0;">
+          <div class="ph-icon" style="font-size:22px;">📋</div>
+          <p style="font-size:12px;">No scans yet this session</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/push.js"></script>
+<script src="/static/js/demo.js"></script>
+</body>
+</html>

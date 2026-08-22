@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EmotiSense — Sign In</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<!-- REGISTER -->
+<div id="screen-register" class="auth-wrap">
+  <div class="auth-card">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      <div>
+        <div class="logo-text">EmotiSense</div>
+        <div class="logo-sub">Custom CNN · FastAPI · PostgreSQL</div>
+      </div>
+    </div>
+    <h1 class="auth-title">Create account</h1>
+    <p class="auth-sub">Start recognising emotions with your own model</p>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="reg-first">First name</label>
+        <input type="text" id="reg-first" class="form-input" placeholder="Jon" autocomplete="given-name">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="reg-last">Last name</label>
+        <input type="text" id="reg-last" class="form-input" placeholder="Snow" autocomplete="family-name">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="reg-email">Email</label>
+      <input type="email" id="reg-email" class="form-input" placeholder="jonsnow@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="reg-pass">Password</label>
+      <input type="password" id="reg-pass" class="form-input" placeholder="Min 6 characters" autocomplete="new-password">
+    </div>
+    <div id="reg-error" class="error-msg"></div>
+    <button class="btn-primary" id="reg-btn" onclick="register()">Create account</button>
+    <p class="auth-switch">Already have an account? <a onclick="showLogin()">Sign in</a></p>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="screen-login" class="auth-wrap" style="display:none;">
+  <div class="auth-card">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      <div>
+        <div class="logo-text">EmotiSense</div>
+        <div class="logo-sub">Custom CNN · FastAPI · PostgreSQL</div>
+      </div>
+    </div>
+    <h1 class="auth-title">Welcome back</h1>
+    <p class="auth-sub">Sign in to your account</p>
+
+    <div class="form-group">
+      <label class="form-label" for="login-email">Email</label>
+      <input type="email" id="login-email" class="form-input" placeholder="jonsnow@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="login-pass">Password</label>
+      <input type="password" id="login-pass" class="form-input" placeholder="Your password" autocomplete="current-password">
+    </div>
+    <div id="login-error" class="error-msg"></div>
+    <button class="btn-primary" id="login-btn" onclick="login()">Sign in</button>
+    <p class="auth-switch">Don't have an account? <a onclick="showRegister()">Register</a></p>
+  </div>
+</div>
+
+<script>
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+  }
+  function setLoading(id, loading, text) {
+    const b = document.getElementById(id);
+    b.disabled = loading; b.textContent = loading ? 'Please wait…' : text;
+  }
+  function showLogin()    { document.getElementById('screen-register').style.display='none'; document.getElementById('screen-login').style.display='flex'; }
+  function showRegister() { document.getElementById('screen-login').style.display='none'; document.getElementById('screen-register').style.display='flex'; }
+
+  async function register() {
+    const first = document.getElementById('reg-first').value.trim();
+    const last  = document.getElementById('reg-last').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pass  = document.getElementById('reg-pass').value;
+    if (!first || !last) return showError('reg-error', 'Please enter your full name.');
+    if (!email.includes('@')) return showError('reg-error', 'Please enter a valid email.');
+    if (pass.length < 6) return showError('reg-error', 'Password must be at least 6 characters.');
+    setLoading('reg-btn', true, 'Create account');
+    try {
+      const res  = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({first_name:first,last_name:last,email,password:pass}) });
+      const data = await res.json();
+      if (!res.ok) return showError('reg-error', data.detail || 'Registration failed.');
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('first_name', data.first_name);
+      window.location.href = '/demo';
+    } catch { showError('reg-error', 'Network error — is the server running?'); }
+    finally  { setLoading('reg-btn', false, 'Create account'); }
+  }
+
+  async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-pass').value;
+    if (!email || !pass) return showError('login-error', 'Please fill in both fields.');
+    setLoading('login-btn', true, 'Sign in');
+    try {
+      const res  = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email,password:pass}) });
+      const data = await res.json();
+      if (!res.ok) return showError('login-error', data.detail || 'Invalid credentials.');
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('first_name', data.first_name);
+      window.location.href = '/demo';
+    } catch { showError('login-error', 'Network error — is the server running?'); }
+    finally  { setLoading('login-btn', false, 'Sign in'); }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    document.getElementById('screen-login').style.display !== 'none' ? login() : register();
+  });
+
+  if (localStorage.getItem('token')) window.location.href = '/demo';
+</script>
+</body>
+</html>
